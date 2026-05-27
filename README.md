@@ -1,5 +1,4 @@
-# BeautyCare-AI 💄
-
+## 🌟 Star this repo if you like it!
 An AI-powered beauty care application that suggests the best hair care products based on customer problems.
 
 ## 🚀 Features
