@@ -2,6 +2,8 @@ import requests
 from django.conf import settings
 from typing import Generator
 
+from .prompt_builder import ChatPromptContext, build_system_prompt
+
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MAIN_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 
@@ -23,7 +25,7 @@ def get_ai_response(messages_qs) -> tuple[str,int]:
     messages = build_messages(messages_qs)
 
     openrouter_messages = [
-        {"role":"system","content":settings.BEAUTICARE_SYSTEM_PROMPT}
+        {"role": "system", "content": build_system_prompt(ChatPromptContext())},
     ] + messages
 
     payload = {
@@ -51,7 +53,7 @@ def stream_ai_response(messages_qs) -> Generator[str,None,None]:
     messages = build_messages(messages_qs)
 
     openrouter_messages = [
-        {"role":"system","content":settings.BEAUTICARE_SYSTEM_PROMPT }
+        {"role": "system", "content": build_system_prompt(ChatPromptContext())},
     ] + messages
 
     payload = {

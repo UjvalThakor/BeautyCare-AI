@@ -1,16 +1,115 @@
 import json
+import uuid
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from datetime import timedelta
 from .models import Chat, Messages, Product
 from .openrouter_service import (
     get_ai_response,
+    get_ai_response_with_products,
     generate_session_title,
     detect_category,
     analyze_hair_problem,
 )
+from .prompt_builder import (
+    ChatPromptContext,
+    append_context_to_user_message,
+    conversation_emoji_flags,
+    pick_dynamic_greeting_fallback,
+)
+
+GREETINGS = {
+    'hi', 'hello', 'hey', 'hii', 'helo', 'helloo', 'sup',
+    'namaste', 'hola', 'good morning', 'good evening',
+    'good afternoon', 'good night', 'howdy', "what's up", 'whats up',
+}
+
+GENERAL_EXACT = {
+    'date', 'today', 'help', 'help me', 'need help',
+    'how are you', 'who are you', 'what can you do', 'what do you do',
+    'thanks', 'thank you', 'bye', 'goodbye', 'ok', 'okay',
+}
+
+GENERAL_PHRASES = [
+    'what day', 'what is today', 'todays date', "today's date",
+    'what time', "what's the date", 'whats the date',
+]
+
+NON_HAIRCARE_KEYWORDS = [
+    'sunscreen', 'sunblock', 'spf', 'moisturizer', 'moisturiser',
+    'face wash', 'facewash', 'toner', 'serum face', 'face serum',
+    'acne', 'pimple', 'foundation', 'lipstick', 'mascara',
+    'concealer', 'blush', 'eyeshadow', 'primer', 'makeup',
+    'perfume', 'deodorant', 'body lotion', 'body wash',
+    'face cream', 'eye cream', 'night cream', 'bb cream',
+    'cc cream', 'kajal', 'eyeliner', 'nail polish', 'nail',
+    'soap', 'toothpaste', 'supplement', 'vitamin', 'tablet',
+]
+
+COMPETITOR_BRAND_KEYWORDS = [
+    'dove', 'pantene', 'head & shoulders', 'head and shoulders',
+    'tresemme', 'tresemmé', 'loreal', "l'oreal", "l'oréal",
+    'sunsilk', 'himalaya', 'wow', 'mamaearth', 'biotique',
+    'clinic plus', 'clinic all clear', 'all clear', 'clear shampoo',
+    'garnier', 'schwarzkopf', 'matrix', 'kérastase', 'kerastase',
+    'moroccanoil', 'ogx', 'herbal essences', 'vatika', 'dabur',
+    'parachute', 'indulekha', 'forest essentials', 'plum',
+    'mCaffeine', 'mcaffeine', 'nykaa', 'beardo', 'man matters',
+]
+
+AFFIRM_WORDS = [
+    'yes', 'yeah', 'yep', 'yaa', 'ya', 'sure', 'ok', 'okay', 'please',
+    'go ahead', 'show them', 'show it', 'show me', 'dikhao', 'haan', 'han',
+    'theek', 'thik', 'done', 'alright', 'absolutely', 'definitely',
+    'interested', 'i am interested', 'tell me', 'show atharva',
+]
+
+PRICE_WORDS = [
+    'price', 'cost', 'how much', 'rate', 'rupee', 'rupees',
+    'rs.', ' rs ', 'expensive', 'cheap', 'kitna', 'kitne',
+    'kya price', 'what price',
+]
+
+CONTEXT_REF_WORDS = [
+    'this', 'that', 'it', 'the same', 'same one', 'above', 'mentioned',
+    'this one', 'that one', 'the product', 'this product', 'that product',
+]
+
+PRODUCT_ALIASES = {
+    'prewash':   ['prewash', 'pre wash', 'ph balancer', 'pre shampoo', 'pre-wash'],
+    'silkbond':  ['silk bond', 'silkbond', 'silk bond treatment'],
+    'shampoo':   ['argan shampoo', 'hair wash'],
+    'hairmask':  ['hair mask', 'hairmask', 'argan hair mask', 'argan mask'],
+    'hairserum': ['hair serum', 'hairserum', 'argan serum', 'argan oil hair serum', 'oil serum'],
+}
+
+ROUTINE_KEYWORDS = [
+    'routine', 'regimen', 'hair care plan', 'haircare plan', 'care plan',
+    'step by step', 'step-by-step', 'in what order', 'which order first',
+    'how to use together', 'weekly plan', 'daily plan', 'make a routine',
+    'create a routine', 'build a routine', 'personalized routine',
+    'personalised routine', 'custom routine',
+]
+
+ROUTINE_SHORT_PHRASES = [
+    'make it', 'make one', 'create it', 'build it', 'do it', 'yes make',
+    'please make', 'sure make', 'make the routine', 'make my routine',
+]
+
+EXPLICIT_CARD_KEYWORDS = [
+    'show me', 'show product', 'show image', 'show photo', 'show picture',
+    'give me image', 'give me photo', 'image dikhao', 'photo dikhao',
+    'product dikhao', 'all products', 'show all', 'what products',
+    'your products', 'available products',
+]
+
+INFO_ONLY_KEYWORDS = [
+    'price', 'cost', 'how much', 'rate', 'rating', 'stars',
+    'what is', 'tell me', 'describe', 'what are', 'benefits',
+    'kitna', 'kitne', 'kya price', 'what price',
+]
 
 def get_session_key(request):
     if not request.session.session_key:
@@ -41,87 +140,23 @@ def group_sessions_by_time(sessions):
             groups['Older'].append(s)
     return {k: v for k, v in groups.items() if v}
 
+
 def user_wants_image(text: str) -> bool:
     image_words = [
         'show me', 'show image', 'show photo', 'show picture',
         'image', 'photo', 'picture', 'pic', 'see it', 'look like',
         'how does it look', 'what does it look',
     ]
-    t = text.lower()
-    return any(w in t for w in image_words)
-
-
-GREETINGS = {
-    'hi', 'hello', 'hey', 'hii', 'helo', 'helloo',
-    'sup', 'namaste', 'hola', 'good morning', 'good evening',
-    'good afternoon', 'good night', 'howdy', 'what\'s up', 'whats up',
-}
-
-GENERAL_QUERIES = {
-    'date', 'today', 'what day', 'what is today', 'todays date',
-    "today's date", 'what time', 'how are you', 'who are you',
-    'what can you do', 'what do you do', 'help',
-}
-
-NON_HAIRCARE_KEYWORDS = [
-    'sunscreen', 'sunblock', 'spf', 'moisturizer', 'moisturiser',
-    'face wash', 'facewash', 'toner', 'serum face', 'face serum',
-    'acne', 'pimple', 'foundation', 'lipstick', 'mascara',
-    'concealer', 'blush', 'eyeshadow', 'primer', 'makeup',
-    'perfume', 'deodorant', 'body lotion', 'body wash',
-    'face cream', 'eye cream', 'night cream', 'bb cream',
-    'cc cream', 'kajal', 'eyeliner', 'nail polish', 'nail',
-    'soap', 'toothpaste', 'supplement', 'vitamin', 'tablet',
-]
-
-COMPETITOR_BRAND_KEYWORDS = [
-    'dove', 'pantene', 'head & shoulders', 'head and shoulders',
-    'tresemme', 'tresemmé', 'loreal', "l'oreal", "l'oréal",
-    'sunsilk', 'himalaya', 'wow', 'mamaearth', 'biotique',
-    'clinic plus', 'clinic all clear', 'all clear', 'clear shampoo',
-    'garnier', 'schwarzkopf', 'matrix', 'kérastase', 'kerastase',
-    'moroccanoil', 'ogx', 'herbal essences', 'vatika', 'dabur',
-    'parachute', 'indulekha', 'forest essentials', 'plum',
-    'mCaffeine', 'mcaffeine', 'nykaa', 'beardo', 'man matters',
-]
-
-SHOW_ALL_KEYWORDS = [
-    'show all', 'all product', 'all products', 'show products',
-    'show me all', 'list all', 'what products', 'available products',
-    'what do you have', 'what do you sell', 'your products',
-    'show everything', 'display all', 'all images', 'show images',
-    'all photos', 'show photos', 'product images', 'give me images',
-    'give me photos', 'images dikhao', 'photos dikhao', 'sab dikhao',
-    'sabhi product', 'full list',
-]
-
-
-DATA_DUMP_KEYWORDS = [
-    'json', 'xml', 'csv', 'api', 'raw data', 'database', 'dump',
-    'export', 'give me data', 'product data', 'all data', 'fetch',
-    'endpoint', 'schema', 'object', 'array', 'dict', 'payload',
-]
-
-PROBLEM_TYPE_TO_CODES = {
-    'hair_fall':       ['silkbond', 'prewash'],
-    'dandruff':        ['prewash', 'shampoo'],
-    'dry_hair':        ['hairmask', 'hairserum'],
-    'frizzy':          ['hairserum', 'hairmask'],
-    'dull':            ['hairserum', 'shampoo'],
-    'damaged':         ['silkbond', 'hairmask', 'hairserum'],
-    'scalp_buildup':   ['prewash'],
-    'oily_scalp':      ['prewash', 'shampoo'],
-    'slow_growth':     ['prewash', 'silkbond'],
-    'other':           [],
-    'non_haircare':    [],
-}
+    return any(w in text.lower() for w in image_words)
 
 
 def _is_general_query(text: str) -> bool:
-    t = text.lower().strip()
-    if t in GREETINGS:
-        return True
-    return any(phrase in t for phrase in GENERAL_QUERIES)
+    t = text.lower().strip().rstrip('?!.')
+    return t in GREETINGS or t in GENERAL_EXACT or any(p in t for p in GENERAL_PHRASES)
+
+
+def _is_pure_greeting(text: str) -> bool:
+    return text.lower().strip().rstrip('?!.') in GREETINGS
 
 
 def _is_competitor_query(text: str) -> bool:
@@ -130,146 +165,200 @@ def _is_competitor_query(text: str) -> bool:
 
 
 def _is_data_dump_request(text: str) -> bool:
+    DATA_DUMP = ['json', 'xml', 'csv', 'api', 'raw data', 'database', 'dump',
+                 'export', 'give me data', 'product data', 'all data', 'fetch',
+                 'endpoint', 'schema', 'object', 'array', 'dict', 'payload']
     t = text.lower()
-    return any(kw in t for kw in DATA_DUMP_KEYWORDS)
+    return any(kw in t for kw in DATA_DUMP)
 
 
-def get_products_for_query(query: str, ai_analysis: dict | None = None):
-    query_lower = query.lower().strip()
-
-    if _is_general_query(query_lower):
-        return Product.objects.none()
-
-    if any(kw in query_lower for kw in NON_HAIRCARE_KEYWORDS):
-        return Product.objects.none()
-
-    if _is_competitor_query(query_lower):
-        return Product.objects.none()
-    if _is_data_dump_request(query_lower):
-        return Product.objects.filter(in_stock=True)
-
-    if any(kw in query_lower for kw in SHOW_ALL_KEYWORDS):
-        return Product.objects.filter(in_stock=True)
-
-    if ai_analysis and ai_analysis.get('problem_detected'):
-        if ai_analysis.get('is_non_haircare_product_request'):
-            return Product.objects.none()
-        if ai_analysis.get('is_competitor_brand_request'):
-            return Product.objects.none()
-
-        problem_type = ai_analysis.get('problem_type', 'other')
-        ai_product_codes = ai_analysis.get('product_codes_needed', [])
-
-        codes = ai_product_codes or PROBLEM_TYPE_TO_CODES.get(problem_type, [])
-
-        if codes:
-            return _ordered_queryset_by_codes(codes)
-
-    PRIORITY_MAP = [
-        ('prewash',   ['prewash', 'pre wash', 'ph balancer', 'pre shampoo',
-                       'hard water shampoo', 'scalp buildup', 'scalp clean',
-                       'itchy scalp', 'dandruff', 'flakes', 'oily scalp',
-                       'follicle', 'pollution damage']),
-        ('silkbond',  ['silk bond', 'silkbond', 'hair fall', 'hairfall',
-                       'hair loss', 'falling hair', 'chemically treated',
-                       'damaged hair', 'repair hair', 'breakage', 'weak hair',
-                       'hair thinning', 'thin hair']),
-        ('hairmask',  ['hair mask', 'hairmask', 'deep condition', 'dry hair',
-                       'brittle hair', 'strengthen hair', 'nourish hair',
-                       'moisturise hair', 'dehydrated hair']),
-        ('hairserum', ['hair serum', 'hairserum', 'argan serum', 'frizzy',
-                       'frizz', 'heat protect', 'glossy hair', 'silky hair',
-                       'dull hair', 'no shine', 'rough hair', 'smooth hair']),
-        ('shampoo',   ['argan shampoo', 'argan hair wash', 'hair cleanse',
-                       'gentle shampoo', 'sulphate free']),
-    ]
-
-    for problem_code, triggers in PRIORITY_MAP:
-        if any(kw in query_lower for kw in triggers):
-            return Product.objects.filter(problem=problem_code, in_stock=True)[:1]
-
-    all_products = Product.objects.filter(in_stock=True)
-    for p in all_products:
-        if p.name.lower() in query_lower:
-            return Product.objects.filter(id=p.id)
-
-    keyword_map = {
-        'prewash':   ['ph balancer', 'scalp', 'hard water', 'pollution', 'follicle'],
-        'silkbond':  ['smooth', 'bond', 'cuticle', 'treatment', 'repair'],
-        'shampoo':   ['shampoo', 'hair wash', 'wash hair', 'cleanse'],
-        'hairmask':  ['mask', 'conditioning', 'moisture', 'nourish'],
-        'hairserum': ['serum', 'shine', 'argan oil', 'hair oil', 'silky'],
-    }
-    best_problem = None
-    best_score = 0
-    for problem_code, keywords in keyword_map.items():
-        score = sum(1 for kw in keywords if kw in query_lower)
-        if score > best_score:
-            best_score = score
-            best_problem = problem_code
-
-    if best_problem and best_score > 0:
-        return Product.objects.filter(problem=best_problem, in_stock=True)[:1]
-
-    return Product.objects.none()
+def _is_price_query(text: str) -> bool:
+    return any(w in text.lower() for w in PRICE_WORDS)
 
 
-def _product_from_ai_reply(ai_text: str):
+def _is_contextual_followup(text: str) -> bool:
+    t = text.lower().strip()
+    if any(w in t for w in CONTEXT_REF_WORDS):
+        return True
+    if any(w in t for w in PRICE_WORDS) and len(t.split()) <= 12:
+        return True
+    return False
 
-    text_lower = ai_text.lower()
-    if 'here is the' not in text_lower or 'image' not in text_lower:
-        return None
+
+def _user_affirms(text: str) -> bool:
+    t = text.lower().strip().rstrip('?!.')
+    if len(t.split()) > 5:
+        return False
+    return any(a in t for a in AFFIRM_WORDS)
+
+
+def _competitor_brand_from_text(text: str) -> str:
+    t = text.lower()
+    for brand in COMPETITOR_BRAND_KEYWORDS:
+        if brand in t:
+            return brand.title()
+    return ''
+
+
+def _product_by_code(code: str):
+    return Product.objects.filter(problem=code, in_stock=True).first()
+
+
+def _match_product_aliases(text: str):
+    t = text.lower()
+    for code, triggers in PRODUCT_ALIASES.items():
+        if any(tr in t for tr in triggers):
+            p = _product_by_code(code)
+            if p:
+                return p
     for p in Product.objects.filter(in_stock=True):
-        if p.name.lower() in text_lower:
+        if p.name.lower() in t or p.brand.lower() in t:
             return p
+    return None
+
+
+def _resolve_context_product(session, query: str = ''):
+    if query:
+        hit = _match_product_aliases(query)
+        if hit:
+            return hit
+    all_products = list(Product.objects.filter(in_stock=True))
+    for msg in session.messages.order_by('-id')[:14]:
+        t = msg.content.lower()
+        for p in all_products:
+            if p.name.lower() in t:
+                return p
+        hit = _match_product_aliases(t)
+        if hit:
+            return hit
     return None
 
 
 def _last_mentioned_product(session):
     all_products = list(Product.objects.filter(in_stock=True))
-    recent_messages = session.messages.filter(role='assistant').order_by('-id')[:5]
-    for msg in recent_messages:
-        text_lower = msg.content.lower()
+    for msg in session.messages.filter(role='assistant').order_by('-id')[:5]:
+        t = msg.content.lower()
         for p in all_products:
-            if p.name.lower() in text_lower:
+            if p.name.lower() in t:
                 return p
     return None
 
 
-def _ordered_queryset_by_codes(codes: list):
-    if not codes:
-        return Product.objects.none()
-
-    products = []
-    seen_ids = set()
-    for code in codes:
-        qs = Product.objects.filter(problem=code, in_stock=True)
-        for p in qs:
-            if p.id not in seen_ids:
-                products.append(p)
-                seen_ids.add(p.id)
-
-    ids = [p.id for p in products]
-    return _ordered_queryset(ids)
+def _bot_invited_show_products(session) -> bool:
+    last = session.messages.filter(role='assistant').order_by('-id').first()
+    if not last:
+        return False
+    t = last.content.lower()
+    return any(p in t for p in [
+        'show me the product', 'show me the products', 'product cards',
+        'pull up the full', 'cards below', 'show all', 'see the product',
+    ])
 
 
-def _ordered_queryset(ids: list):
-    if not ids:
-        return Product.objects.none()
-    from django.db.models import Case, When, IntegerField
-    ordering = Case(
-        *[When(pk=pk, then=pos) for pos, pk in enumerate(ids)],
-        output_field=IntegerField(),
-    )
-    return Product.objects.filter(pk__in=ids, in_stock=True).annotate(
-        _order=ordering
-    ).order_by('_order')
+def _bot_offered_atharva_alternative(session) -> bool:
+    last = session.messages.filter(role='assistant').order_by('-id').first()
+    if not last:
+        return False
+    t = last.content.lower()
+    declined = any(x in t for x in [
+        "don't carry", "do not carry", "we don't have", "we do not have",
+        'not in our range', 'outside our range', 'we specialise', 'we specialize',
+    ])
+    offered = any(x in t for x in [
+        'if you', "if you'd", 'interested', 'would you like',
+        'can suggest', 'happy to suggest', 'atharva alternative', 'atharva product',
+    ])
+    return declined and offered
+
+
+def _bot_offered_routine(session) -> bool:
+    last = session.messages.filter(role='assistant').order_by('-id').first()
+    if not last:
+        return False
+    t = last.content.lower()
+    return any(x in t for x in [
+        'personalized routine', 'personalised routine', 'hair routine',
+        'make a routine', 'create a routine', 'build a routine',
+        'routine for you', 'custom routine', 'step-by-step routine',
+    ])
+
+
+def _user_wants_routine(text: str, session) -> bool:
+    t = text.lower().strip().rstrip('?!.')
+    if any(kw in t for kw in ROUTINE_KEYWORDS):
+        return True
+    if any(p in t for p in ROUTINE_SHORT_PHRASES) and len(t.split()) <= 5:
+        return _bot_offered_routine(session)
+    return False
+
+
+def _recent_user_concern(session) -> str:
+    msg = session.messages.filter(role='user').order_by('-id').first()
+    return msg.content[:200] if msg else ''
+
+
+def local_hair_analysis(text: str) -> dict:
+    t = text.lower()
+    result = {
+        "problem_detected": False,
+        "problem_type": "other",
+        "severity": "mild",
+        "is_haircare_related": True,
+        "is_non_haircare_product_request": False,
+        "is_competitor_brand_request": _is_competitor_query(t),
+        "competitor_brand_name": _competitor_brand_from_text(text),
+        "product_codes_needed": [],
+        "brief_summary": "",
+    }
+    if result["is_competitor_brand_request"]:
+        return result
+    if any(kw in t for kw in NON_HAIRCARE_KEYWORDS):
+        result["is_non_haircare_product_request"] = True
+        result["is_haircare_related"] = False
+        return result
+    keyword_map = [
+        (['hair fall', 'hairfall', 'hair loss', 'thinning', 'breakage'], 'hair_fall', ['silkbond', 'prewash']),
+        (['dandruff', 'flakes', 'itchy scalp'], 'dandruff', ['prewash', 'shampoo']),
+        (['dry hair', 'brittle', 'dehydrated'], 'dry_hair', ['hairmask', 'hairserum']),
+        (['frizz', 'frizzy', 'unmanageable'], 'frizzy', ['hairserum', 'hairmask']),
+        (['dull', 'no shine', 'lifeless'], 'dull', ['hairserum', 'shampoo']),
+        (['damaged', 'chemically treated', 'heat damage'], 'damaged', ['silkbond', 'hairmask', 'hairserum']),
+        (['buildup', 'hard water', 'pollution'], 'scalp_buildup', ['prewash']),
+        (['oily scalp', 'greasy'], 'oily_scalp', ['prewash', 'shampoo']),
+        (['slow growth', 'weak roots'], 'slow_growth', ['prewash', 'silkbond']),
+    ]
+    for triggers, problem_type, codes in keyword_map:
+        if any(tr in t for tr in triggers):
+            result.update({
+                "problem_detected": True,
+                "problem_type": problem_type,
+                "product_codes_needed": codes,
+                "brief_summary": problem_type.replace('_', ' '),
+            })
+            return result
+    if _match_product_aliases(text):
+        result["problem_detected"] = True
+        result["brief_summary"] = "product inquiry"
+    return result
+
+
+def _get_preview(session):
+    last_msg = session.messages.filter(role='assistant').last()
+    if last_msg:
+        text = last_msg.content
+        for c in ['🔍','🏆','📦','💰','⭐','🛒','📝','✅','🎯','⚠️','💡','🌟','✨','💖','🌸','🧬','🗓️','━']:
+            text = text.replace(c, '')
+        text = text.replace('*', '').replace('#', '').replace('---', '').strip()
+        lines = [l.strip() for l in text.split('\n') if l.strip()]
+        return lines[0][:80] if lines else 'BeautiCare response...'
+    first_user = session.messages.filter(role='user').first()
+    return first_user.content[:80] if first_user else 'New consultation'
 
 
 def build_products_data(request, products, include_image=True):
     data = []
     for p in products:
-        item = {
+        data.append({
             'name':         p.name,
             'brand':        p.brand,
             'price':        str(p.price),
@@ -280,53 +369,13 @@ def build_products_data(request, products, include_image=True):
             'avoid_if':     p.avoid_if,
             'category':     p.category,
             'image': request.build_absolute_uri(p.image.url) if (p.image and include_image) else '',
-        }
-        data.append(item)
+        })
     return data
-
-
-def build_product_context(products, ai_analysis: dict | None = None) -> str:
-    if not products:
-        return ""
-
-    problem_summary = ""
-    if ai_analysis and ai_analysis.get('problem_detected'):
-        problem_summary = (
-            f"\nDetected problem : {ai_analysis.get('problem_type', 'unknown').replace('_', ' ').title()}"
-            f"\nSeverity         : {ai_analysis.get('severity', 'mild').title()}"
-            f"\nSummary          : {ai_analysis.get('brief_summary', '')}"
-        )
-
-    product_lines = []
-    for p in products:
-        product_lines.append(
-            f"- {p.brand} {p.name} | Rs.{p.price} | {p.rating}/5 stars"
-        )
-
-    products_block = "\n".join(product_lines)
-
-    return (
-        f"\n\n[SYSTEM — PRODUCT DATA]\n"
-        f"{problem_summary}\n"
-        f"Matched products:\n{products_block}\n\n"
-        f"RESPONSE INSTRUCTIONS — READ CAREFULLY:\n"
-        f"The frontend will display full product cards (image, price, rating, how-to-use, avoid-if).\n"
-        f"You must NOT repeat those details in your text reply.\n"
-        f"Your text reply must be SHORT — 3 to 5 sentences maximum:\n"
-        f"  1. One sentence identifying the user's problem.\n"
-        f"  2. One or two sentences explaining why the matched product(s) help.\n"
-        f"  3. One friendly closing line (e.g. 'The product cards below have all the details.').\n"
-        f"Do NOT write long sections, bullet lists of causes, or lifestyle tips.\n"
-        f"Do NOT restate price, rating, or how-to-use — the cards already show all of that.\n"
-        f"Use ONLY the product names listed above — no others."
-    )
-
 
 def index(request):
     sessions = get_user_sessions(request)
-    grouped = group_sessions_by_time(sessions)
     return render(request, 'index.html', {
-        'grouped_sessions': grouped,
+        'grouped_sessions': group_sessions_by_time(sessions),
         'active_session':   None,
         'messages':         [],
     })
@@ -334,7 +383,7 @@ def index(request):
 
 def chat_session(request, session_id):
     sessions = get_user_sessions(request)
-    session  = get_object_or_404(Chat, id=session_id)
+    session = get_object_or_404(Chat, id=session_id)
     if request.user.is_authenticated:
         if session.user != request.user:
             return redirect('index')
@@ -351,15 +400,12 @@ def chat_session(request, session_id):
         }
         for m in raw_messages
     ]
-
-    grouped = group_sessions_by_time(sessions)
     return render(request, 'index.html', {
-        'grouped_sessions':    grouped,
-        'active_session':      session,
-        'messages':            raw_messages,
+        'grouped_sessions':       group_sessions_by_time(sessions),
+        'active_session':         session,
+        'messages':               raw_messages,
         'messages_with_products': json.dumps(messages_with_products),
     })
-
 
 @require_http_methods(["POST"])
 def new_session(request):
@@ -386,7 +432,6 @@ def send_message(request, session_id):
         return JsonResponse({'error': 'Message cannot be empty'}, status=400)
 
     session = get_object_or_404(Chat, id=session_id)
-
     if request.user.is_authenticated:
         if session.user != request.user:
             return JsonResponse({'error': 'Forbidden'}, status=403)
@@ -396,111 +441,164 @@ def send_message(request, session_id):
 
     is_first_message = not session.messages.exists()
     session_title = session.title
-
+    user_lower = user_text.lower()
     is_general = _is_general_query(user_text)
     is_competitor = _is_competitor_query(user_text)
     is_data_dump = _is_data_dump_request(user_text)
+    is_price_query = _is_price_query(user_text)
+    is_contextual = _is_contextual_followup(user_text)
     wants_image = user_wants_image(user_text)
+    is_routine = _user_wants_routine(user_text, session)
+    is_affirm_atharva = _user_affirms(user_text) and _bot_offered_atharva_alternative(session)
+    is_affirm_show = _user_affirms(user_text) and _bot_invited_show_products(session)
+    context_product = _resolve_context_product(session, user_text)
 
-    EXPLICIT_PRODUCT_KEYWORDS = [
-        'show me', 'show product', 'show image', 'show photo', 'show picture',
-        'give me image', 'give me photo', 'give me the', 'image dikhao',
-        'photo dikhao', 'product dikhao', 'all products', 'show all',
-        'what products', 'your products', 'available products',
-    ]
-    user_lower = user_text.lower()
-    wants_cards = wants_image or any(kw in user_lower for kw in EXPLICIT_PRODUCT_KEYWORDS)
+    wants_cards = wants_image or any(kw in user_lower for kw in EXPLICIT_CARD_KEYWORDS)
+    is_info_only = any(kw in user_lower for kw in INFO_ONLY_KEYWORDS)
+    if is_info_only and not wants_image:
+        wants_cards = False
 
-    is_contextual_image_request = wants_cards and any(
-        kw in user_lower
-        for kw in ['that', 'it', 'this', 'the product', 'the image', 'the photo']
+    is_contextual_image = wants_cards and any(
+        kw in user_lower for kw in ['that', 'it', 'this', 'the product', 'the image', 'the photo']
     )
 
-    ai_analysis = None
-    matching_products = Product.objects.none()
-    product_context = ""
+    ai_analysis = local_hair_analysis(user_text)
+    is_non_haircare = bool(ai_analysis.get('is_non_haircare_product_request'))
 
-    if not is_general:
-        if is_contextual_image_request:
-            last_p = _last_mentioned_product(session)
-            if last_p:
-                matching_products = Product.objects.filter(pk=last_p.pk)
-        else:
-            try:
-                ai_analysis = analyze_hair_problem(user_text)
-                print(f"  → AI Analysis: {ai_analysis}")
-            except Exception as e:
-                print(f"  → AI analysis failed: {e}")
-                ai_analysis = None
+    emoji_flags = conversation_emoji_flags(session, user_text)
+    prompt_ctx = ChatPromptContext.from_request(
+        user_message=user_text,
+        is_general=is_general,
+        is_pure_greeting=_is_pure_greeting(user_text),
+        is_routine=is_routine,
+        is_competitor=is_competitor,
+        is_affirm_atharva=is_affirm_atharva,
+        is_affirm_show=is_affirm_show,
+        is_data_dump=is_data_dump,
+        is_non_haircare=is_non_haircare,
+        products=[],
+        ai_analysis=ai_analysis,
+        price_focus=is_price_query,
+        contextual=is_contextual,
+        competitor_brand=_competitor_brand_from_text(user_text) or ai_analysis.get('competitor_brand_name', ''),
+        concern_snippet=_recent_user_concern(session),
+        **emoji_flags,
+    )
+    SECURITY_KEYWORDS = [
+        'system prompt', 'your prompt', 'instructions',
+        'sql', 'select', 'database', 'db ', 'table',
+        'connection string', 'credentials', 'password',
+        'api key', 'secret', 'config', 'settings',
+        'source code', 'your code', 'how are you built',
+    ]
 
-            matching_products = get_products_for_query(user_text, ai_analysis=ai_analysis)
+    is_security_attack = any(
+        kw in user_lower for kw in SECURITY_KEYWORDS
+    )
 
-        if matching_products.exists():
-            product_context = build_product_context(list(matching_products), ai_analysis=ai_analysis)
-
+    if is_security_attack:
+        ai_text = "I can only help with Atharva haircare. What hair concern can I help you with?"
+        Messages.objects.create(
+            session=session,
+            role='assistant',
+            content=ai_text
+        )
+        return JsonResponse({
+            'reply': ai_text,
+            'products': [],
+            'message_id': str(uuid.uuid4()),
+            'session_id': str(session.id),
+            'session_title': session_title,
+            'session_category': session.category,
+            'is_first_message': is_first_message,
+            'ai_analysis': {},
+        })
     Messages.objects.create(session=session, role='user', content=user_text)
-
     history = [m.to_api_format() for m in session.messages.all()]
+    for msg in history:
+        if msg.get('content') is None:
+            msg['content'] = ''
+    if is_general and len(history) > 8:
+        history = history[-8:]
+    history[-1]['content'] = append_context_to_user_message(user_text, prompt_ctx)
 
-    if product_context:
-        history[-1]['content'] = user_text + product_context
-
-    elif is_data_dump:
-        history[-1]['content'] = (
-            user_text
-            + "\n\n[SYSTEM NOTE: The user asked for JSON, raw data, or a technical format. "
-            "You must NEVER output JSON, XML, code blocks, or any raw data. "
-            "Instead, reply with one friendly sentence like: "
-            "'I can not share raw data, but here are all our Atharva products — "
-            "the cards below have everything you need.' "
-            "Keep it to one sentence only.]"
-        )
-
-    elif is_competitor and not product_context:
-        brand_name = ""
-        if ai_analysis:
-            brand_name = ai_analysis.get('competitor_brand_name', '')
-        hint = brand_name if brand_name else "a competitor brand"
-        history[-1]['content'] = (
-            user_text
-            + f"\n\n[SYSTEM NOTE: The user asked about {hint}, which we do not carry. "
-            "Reply in 2 sentences ONLY: (1) we don't have that brand, we carry Atharva haircare products; "
-            "(2) offer to suggest the best Atharva alternative for their concern. "
-            "Do NOT ask multiple questions. Do NOT write long paragraphs. Keep it short and friendly.]"
-        )
-
-    elif ai_analysis and ai_analysis.get('is_non_haircare_product_request'):
-        history[-1]['content'] = (
-            user_text
-            + "\n\n[SYSTEM NOTE: User is asking for a non-haircare product. "
-            "Respond with the polite sorry message only.]"
-        )
-
+    tool_products = []
     try:
-        ai_text = get_ai_response(history)
+        if is_general or is_competitor or is_data_dump or is_non_haircare:
+            print(f"  -> Simple mode: {prompt_ctx.mode}")
+            if is_competitor and not is_affirm_atharva:
+                brand = _competitor_brand_from_text(user_text) or "that brand"
+                brand = brand.title()
+                ai_text = (
+                    f"No, we don't carry {brand} — we only have Atharva products. "
+                    f"Would you like me to suggest a similar Atharva product?"
+                )
+            else:
+                ai_text = get_ai_response(history, prompt_ctx=prompt_ctx)
+        else:
+            print(f"  -> Tool call mode: {prompt_ctx.mode}")
+            ai_text, tool_products = get_ai_response_with_products(
+                history, prompt_ctx=prompt_ctx
+            )
+            print(f"  -> Tool products: {len(tool_products)}")
+
     except Exception as e:
-        return JsonResponse({'error': f'AI service error: {str(e)}'}, status=503)
+        print(f"  -> AI error: {e}")
+        if is_general:
+            ai_text = pick_dynamic_greeting_fallback(
+                user_text,
+                greeting_repeat_count=emoji_flags.get("greeting_repeat_count", 0),
+                last_assistant_reply=emoji_flags.get("last_assistant_reply", ""),
+            )
+        else:
+            return JsonResponse({'error': f'AI service error: {str(e)}'}, status=503)
 
     ai_message = Messages.objects.create(
         session=session, role='assistant', content=ai_text
     )
-
     if is_first_message:
-        try:
-            title = generate_session_title(user_text)
-            category = detect_category(user_text)
-            session.title = title
-            session.category = category
-            session_title = session.title
-            session.save(update_fields=['title', 'category', 'updated_at'])
-        except Exception:
-            session.save(update_fields=['updated_at'])
+        session.title = generate_session_title(user_text)
+        session.category = detect_category(user_text)
+        session_title = session.title
+        session.save(update_fields=['title', 'category', 'updated_at'])
     else:
         session.save(update_fields=['updated_at'])
 
+    if tool_products:
+        final_products = tool_products
+        wants_cards = True
+    elif is_affirm_show:
+        resolved = _resolve_context_product(session, user_text)
+        if resolved:
+            final_products = [resolved]
+        else:
+            last_msg = session.messages.filter(role='assistant').order_by('-id').first()
+            mentioned = []
+            if last_msg:
+                all_prods = list(Product.objects.filter(in_stock=True))
+                for p in all_prods:
+                    if p.name.lower() in last_msg.content.lower():
+                        mentioned.append(p)
+            final_products = mentioned if mentioned else list(Product.objects.filter(in_stock=True)[:2])
+        wants_cards = True
+    elif is_affirm_atharva:
+        final_products = list(Product.objects.filter(in_stock=True)[:2])
+        wants_cards = True
+    elif is_contextual and context_product and (wants_image or is_contextual_image):
+        final_products = [context_product]
+        wants_cards = True
+    elif is_contextual_image:
+        p = _resolve_context_product(session, user_text) or _last_mentioned_product(session)
+        final_products = [p] if p else []
+        wants_cards = True
+    else:
+        final_products = []
+
+    show_cards = (wants_cards and not is_competitor) or (is_competitor and is_affirm_atharva)
+
     products_data = []
-    if wants_cards and matching_products.exists():
-        for p in matching_products:
+    if show_cards and final_products:
+        for p in final_products:
             products_data.append({
                 'name':        p.name,
                 'brand':       p.brand,
@@ -510,10 +608,8 @@ def send_message(request, session_id):
                 'how_to_use':  p.how_to_use,
                 'image':       request.build_absolute_uri(p.image.url) if p.image else '',
             })
-    if not products_data and wants_cards:
-        resolved = _product_from_ai_reply(ai_text)
-        if not resolved:
-            resolved = _last_mentioned_product(session)
+    if not products_data and show_cards:
+        resolved = _last_mentioned_product(session)
         if resolved and resolved.image:
             products_data.append({
                 'name':        resolved.name,
@@ -529,16 +625,6 @@ def send_message(request, session_id):
         ai_message.products_json = products_data
         ai_message.save(update_fields=['products_json'])
 
-    analysis_meta = {}
-    if ai_analysis:
-        analysis_meta = {
-            'problem_type':           ai_analysis.get('problem_type', ''),
-            'severity':               ai_analysis.get('severity', ''),
-            'summary':                ai_analysis.get('brief_summary', ''),
-            'is_competitor_brand':    ai_analysis.get('is_competitor_brand_request', False),
-            'competitor_brand_name':  ai_analysis.get('competitor_brand_name', ''),
-        }
-
     return JsonResponse({
         'reply':            ai_text,
         'message_id':       str(ai_message.id),
@@ -547,7 +633,13 @@ def send_message(request, session_id):
         'session_category': session.category,
         'is_first_message': is_first_message,
         'products':         products_data,
-        'ai_analysis':      analysis_meta,
+        'ai_analysis': {
+            'problem_type':          ai_analysis.get('problem_type', ''),
+            'severity':              ai_analysis.get('severity', ''),
+            'summary':               ai_analysis.get('brief_summary', ''),
+            'is_competitor_brand':   ai_analysis.get('is_competitor_brand_request', False),
+            'competitor_brand_name': ai_analysis.get('competitor_brand_name', ''),
+        },
     })
 
 
@@ -612,35 +704,63 @@ def session_messages_api(request, session_id):
     else:
         if session.session_key != get_session_key(request):
             return JsonResponse({'error': 'Forbidden'}, status=403)
-
-    messages = []
-    for m in session.messages.all():
-        entry = {
+    messages = [
+        {
             'role':     m.role,
             'content':  m.content,
             'products': m.products_json if m.role == 'assistant' else [],
         }
-        messages.append(entry)
-
+        for m in session.messages.all()
+    ]
     return JsonResponse({'messages': messages})
 
 
 def product_search_api(request):
     query = request.GET.get('q', '')
-    products = get_products_for_query(query)
+    products = list(Product.objects.filter(in_stock=True)) if query else []
     show_img = user_wants_image(query)
-    return JsonResponse({'products': build_products_data(request, list(products), include_image=show_img)})
+    return JsonResponse({'products': build_products_data(request, products, include_image=show_img)})
+
+def api_schema_json(request):
+    from .api_schema import SCHEMA
+    return JsonResponse(SCHEMA, json_dumps_params={'indent': 2})
 
 
-def _get_preview(session):
-    last_msg = session.messages.filter(role='assistant').last()
-    if last_msg:
-        text = last_msg.content
-        for c in ['🔍', '🏆', '📦', '💰', '⭐', '🛒', '📝', '✅', '🎯', '⚠️',
-                   '💡', '🌟', '✨', '💖', '🌸', '🧬', '🗓️', '━']:
-            text = text.replace(c, '')
-        text = text.replace('*', '').replace('#', '').replace('---', '').strip()
-        lines = [l.strip() for l in text.split('\n') if l.strip()]
-        return lines[0][:80] if lines else 'BeautiCare response...'
-    first_user = session.messages.filter(role='user').first()
-    return first_user.content[:80] if first_user else 'New consultation'
+def api_docs(request):
+    html = """<!DOCTYPE html>
+<html>
+<head>
+    <title>BeautiCare AI — API Docs</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+    <style>
+        body { margin: 0; background: #1a1a2e; }
+        .swagger-ui .topbar { background: #16213e; }
+        .swagger-ui .topbar .download-url-wrapper { display: none; }
+        #swagger-ui { max-width: 1200px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+window.onload = function() {
+    SwaggerUIBundle({
+        url: "/api/schema.json",
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        tryItOutEnabled: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+        layout: "BaseLayout",
+        requestInterceptor: (req) => {
+            const csrf = document.cookie.match(/csrftoken=([^;]+)/);
+            if (csrf) req.headers['X-CSRFToken'] = csrf[1];
+            return req;
+        }
+    });
+}
+</script>
+</body>
+</html>"""
+    return HttpResponse(html)

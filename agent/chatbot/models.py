@@ -9,11 +9,11 @@ def generate_uuid():
 
 class Chat(models.Model):
     CATEGORY_CHOICES = [
-        ('skin', 'Skincare'),
-        ('hair', 'Haircare'),
-        ('makeup', 'Makeup'),
+        ('skin',     'Skincare'),
+        ('hair',     'Haircare'),
+        ('makeup',   'Makeup'),
         ('wellness', 'Wellness'),
-        ('general', 'General'),
+        ('general',  'General'),
     ]
 
     id = models.CharField(max_length=36, primary_key=True, default=generate_uuid, editable=False)
@@ -34,7 +34,7 @@ class Chat(models.Model):
 
 class Messages(models.Model):
     ROLE_CHOICES = [
-        ('user', 'User'),
+        ('user',      'User'),
         ('assistant', 'Assistant'),
     ]
 
@@ -44,9 +44,8 @@ class Messages(models.Model):
     products_json = models.JSONField(
         default=list,
         blank=True,
-        help_text='Product cards shown with this assistant message — saved for history replay.',
+        help_text='Product cards shown with this assistant message.',
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -61,21 +60,19 @@ class Messages(models.Model):
 
 class Product(models.Model):
     CATEGORY_CHOICES = [
-        ('skin', 'Skincare'),
-        ('hair', 'Haircare'),
-        ('makeup', 'Makeup'),
+        ('skin',     'Skincare'),
+        ('hair',     'Haircare'),
+        ('makeup',   'Makeup'),
         ('wellness', 'Wellness'),
     ]
+
     PROBLEM_CHOICES = [
-        ('hairfall', 'Hair Fall'),
-        ('dandruff', 'Dandruff'),
-        ('dryness', 'Dryness'),
-        ('frizz', 'Frizz'),
-        ('acne', 'Acne'),
-        ('dark_circles', 'Dark Circles'),
-        ('oily_skin', 'Oily Skin'),
-        ('pigmentation', 'Pigmentation'),
-        ('general', 'General'),
+        ('prewash',   'PH Balancer Prewash Shampoo'),
+        ('silkbond',  'Silk Bond Treatment'),
+        ('shampoo',   'Argan Shampoo'),
+        ('hairmask',  'Argan Hair Mask'),
+        ('hairserum', 'Argan Oil Hair Serum'),
+        ('general',   'General'),
     ]
 
     name = models.CharField(max_length=200)
