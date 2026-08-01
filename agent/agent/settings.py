@@ -4,7 +4,10 @@ Django settings for agent project.
 
 from pathlib import Path
 import os
+import pymysql
 from dotenv import load_dotenv
+
+pymysql.install_as_MySQLdb()
 
 # Load .env file
 load_dotenv()
@@ -116,4 +119,3 @@ if not GEMINI_API_KEY :
 
 SESSION_COOKIE_AGE = 86400 * 30
 SESSION_SAVE_EVERY_REQUEST = True
-
