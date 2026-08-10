@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% load static %}
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BeautiCare AI — Premium Hair & Beauty Advisor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.10.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --bg-dark: #07090e;
+    --bg-app: #0b0f19;
+    --bg-sidebar: #0f1422;
+    --bg-card: rgba(19, 26, 42, 0.75);
+    --bg-bubble-ai: rgba(18, 25, 40, 0.85);
+    --bg-bubble-usr: linear-gradient(135deg, #2a1548 0%, #1e1135 100%);
+    --bg-input: rgba(18, 24, 38, 0.9);
+    
+    --border-light: rgba(255, 255, 255, 0.08);
+    --border-glow: rgba(236, 72, 153, 0.3);
+    --border-active: rgba(139, 92, 246, 0.5);
+    
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    
+    --accent-pink: #ec4899;
+    --accent-purple: #8b5cf6;
+    --accent-violet: #6366f1;
+    --accent-emerald: #10b981;
+    --accent-gradient: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #6366f1 100%);
+    --accent-glow: 0 0 25px rgba(236, 72, 153, 0.25);
+    
+    --sidebar-w: 260px;
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+  }
+  
+  html, body {
+    height: 100%;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  /* Ambient Background Atmosphere */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -20%;
+    left: 20%;
+    width: 60vw;
+    height: 60vh;
+    background: radial-gradient(ellipse at center, rgba(236, 72, 153, 0.08) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 75%);
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(60px);
+  }
+  
+  .app {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    backdrop-filter: blur(16px);
+  }
+  .sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  .sb-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 16px;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .sb-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .sb-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-glow);
+    box-shadow: var(--accent-glow);
+  }
+  .msg-av-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .w-icon-img {
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
+    object-fit: cover;
+    box-shadow: 0 0 35px rgba(236, 72, 153, 0.4);
+    border: 1px solid var(--border-glow);
+  }
+  .sb-brand-name {
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 30%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .sb-brand-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .sb-menu-btn {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 18px;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+  }
+  .sb-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+  }
+  
+  .new-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 14px 10px;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    color: #fff;
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+  .new-btn:hover {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%);
+    border-color: var(--accent-pink);
+    transform: translateY(-1px);
+    box-shadow: var(--accent-glow);
+  }
+  .new-btn-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent-pink);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  
+  .sb-search {
+    padding: 4px 14px 10px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .sb-search i {
+    position: absolute;
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+    pointer-events: none;
+  }
+  .sb-search input {
+    width: 100%;
+    background: rgba(15, 20, 34, 0.8);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 8px 12px 8px 34px;
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .sb-search input::placeholder { color: var(--text-muted); }
+  .sb-search input:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+  }
+  
+  .sb-history {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+  .sb-section {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    padding: 12px 10px 6px;
+  }
+  .chat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 3px;
+    border: 1px solid transparent;
+  }
+  .chat-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .chat-item.active {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: rgba(236, 72, 153, 0.3);
+  }
+  .chat-item.active .ci-icon { color: var(--accent-pink); }
+  .ci-icon { font-size: 15px; color: var(--text-muted); flex-shrink: 0; }
+  .ci-body { flex: 1; min-width: 0; }
+  .ci-title { font-size: 12.5px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .ci-preview { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .ci-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .ci-menu {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 3px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.2s;
+  }
+  .chat-item:hover .ci-menu { opacity: 1; }
+  .ci-menu:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+  
+  .pill { font-size: 9.5px; padding: 2px 7px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pill-skin { background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); }
+  .pill-hair { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+  .pill-makeup { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+  .pill-wellness { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+  .pill-general { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.2); }
+
+  .sb-footer {
+    padding: 12px 14px 16px;
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+  .sb-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-light);
+    transition: all 0.2s;
+  }
+  .sb-user:hover { background: rgba(255, 255, 255, 0.05); }
+  .sb-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .sb-user-name { font-size: 12.5px; font-weight: 600; }
+  .sb-user-plan { font-size: 10.5px; color: var(--accent-pink); font-weight: 500; }
+
+  /* MAIN CONTENT AREA */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-app);
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .reveal-btn {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 20;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 18px;
+    display: none;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  }
+  
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border-light);
+    background: rgba(11, 15, 25, 0.8);
+    backdrop-filter: blur(16px);
+    flex-shrink: 0;
+  }
+  .chat-header-title {
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 600;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-light);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-emerald);
+    box-shadow: 0 0 8px var(--accent-emerald);
+  }
+
+  /* MESSAGES CHAT STREAM */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+  .messages::-webkit-scrollbar { width: 5px; }
+  .messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+  
+  .msg-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    max-width: 860px;
+    margin: 0 auto;
+    width: 100%;
+    animation: fadeUp 0.3s ease forwards;
+  }
+  .msg-row.user {
+    flex-direction: row-reverse;
+  }
+  
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .msg-av {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    box-shadow: var(--accent-glow);
+  }
+  .msg-av.user-av {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+  }
+  
+  .bubble {
+    max-width: 78%;
+    padding: 14px 18px;
+    border-radius: var(--radius-lg);
+    font-size: 13.5px;
+    line-height: 1.7;
+    word-break: break-word;
+    white-space: pre-wrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+  .bubble.ai {
+    background: var(--bg-bubble-ai);
+    border: 1px solid var(--border-light);
+    border-top-left-radius: 4px;
+    color: var(--text-primary);
+  }
+  .bubble.user {
+    background: var(--bg-bubble-usr);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-top-right-radius: 4px;
+    color: #f1f5f9;
+  }
+  
+  .typing-bubble {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 18px;
+  }
+  .typing-bubble span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-pink);
+    opacity: 0.6;
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+  
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* LUXURY PRODUCT CARDS */
+  .product-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 6px 0 6px 50px;
+    max-width: 860px;
+    margin: 0 auto;
+    width: 100%;
+    animation: fadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .pc {
+    width: 210px;
+    flex-shrink: 0;
+    background: rgba(15, 21, 37, 0.9);
+    border: 1px solid rgba(236, 72, 153, 0.25);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .pc:hover {
+    transform: translateY(-6px);
+    border-color: var(--accent-pink);
+    box-shadow: 0 12px 35px rgba(236, 72, 153, 0.2);
+  }
+  .pc-img-wrap {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    background: #0f1422;
+    overflow: hidden;
+  }
+  .pc-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+  }
+  .pc:hover .pc-img {
+    transform: scale(1.05);
+  }
+  .pc-img-placeholder {
+    width: 100%;
+    height: 180px;
+    background: linear-gradient(135deg, #151b2c, #2a1548);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+  }
+  .pc-rating-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(11, 15, 25, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .pc-body {
+    padding: 12px 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .pc-brand {
+    font-size: 9.5px;
+    color: var(--accent-pink);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .pc-name {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin: 4px 0 6px;
+    line-height: 1.35;
+  }
+  .pc-price {
+    font-size: 13px;
+    color: var(--accent-emerald);
+    font-weight: 700;
+    margin-top: auto;
+  }
+
+  .pc-how-btn {
+    width: calc(100% - 24px);
+    margin: 0 12px 12px;
+    padding: 7px 0;
+    background: rgba(236, 72, 153, 0.12);
+    border: 1px solid rgba(236, 72, 153, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--accent-pink);
+    font-family: var(--font-heading);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .pc-how-btn:hover {
+    background: rgba(236, 72, 153, 0.22);
+    border-color: var(--accent-pink);
+  }
+  .pc-how-panel {
+    display: none;
+    padding: 0 12px 12px;
+    animation: fadeUp 0.2s ease forwards;
+  }
+  .pc-how-panel.open { display: block; }
+  .pc-how-text {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    white-space: pre-wrap;
+    border-top: 1px solid var(--border-light);
+    padding-top: 10px;
+  }
+
+  /* WELCOME SCREEN */
+  .welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+    text-align: center;
+  }
+  .w-icon-box {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: var(--accent-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin-bottom: 18px;
+    box-shadow: var(--accent-glow);
+  }
+  .w-title {
+    font-family: var(--font-heading);
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .w-sub {
+    font-size: 14px;
+    color: var(--text-secondary);
+    max-width: 480px;
+    line-height: 1.6;
+    margin-bottom: 34px;
+  }
+  .quick-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    max-width: 640px;
+  }
+  .q-pill {
+    background: rgba(18, 25, 40, 0.7);
+    border: 1px solid var(--border-light);
+    border-radius: 30px;
+    padding: 10px 18px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.25s ease;
+    backdrop-filter: blur(10px);
+  }
+  .q-pill:hover {
+    border-color: var(--accent-pink);
+    color: #fff;
+    background: rgba(236, 72, 153, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.15);
+  }
+  .q-pill i { font-size: 15px; color: var(--accent-pink); }
+
+  /* FLOATING INPUT BAR */
+  .input-wrap {
+    padding: 16px 32px 24px;
+    flex-shrink: 0;
+    max-width: 860px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .input-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-lg);
+    padding: 12px 14px;
+    transition: all 0.25s ease;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(16px);
+  }
+  .input-bar:focus-within {
+    border-color: var(--accent-pink);
+    box-shadow: var(--accent-glow);
+  }
+  .chat-ta {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 13.5px;
+    color: var(--text-primary);
+    resize: none;
+    font-family: inherit;
+    line-height: 1.5;
+    max-height: 140px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .chat-ta::placeholder { color: var(--text-muted); }
+  .input-btns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .i-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 18px;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+  }
+  .i-btn:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.05); }
+  .send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+  }
+  .send-btn:hover {
+    transform: scale(1.06);
+    box-shadow: var(--accent-glow);
+  }
+  .send-btn:active { transform: scale(0.94); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .input-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  /* CONTEXT MENU */
+  .ctx-menu {
+    position: fixed;
+    background: #131a2c;
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-md);
+    padding: 6px;
+    z-index: 1000;
+    min-width: 160px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: none;
+    backdrop-filter: blur(16px);
+  }
+  .ctx-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    transition: all 0.15s;
+    text-align: left;
+  }
+  .ctx-menu button:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+  .ctx-menu button.danger { color: #f87171; }
+  .ctx-menu button.danger:hover { background: rgba(248, 113, 113, 0.15); }
+
+  /* MODAL */
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: #131a2c;
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    width: 360px;
+    max-width: 90vw;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  }
+  .modal h3 { font-family: var(--font-heading); font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .modal-inp {
+    width: 100%;
+    background: rgba(11, 15, 25, 0.8);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #fff;
+    outline: none;
+    font-family: inherit;
+    margin-bottom: 18px;
+    transition: all 0.2s;
+  }
+  .modal-inp:focus { border-color: var(--accent-pink); box-shadow: var(--accent-glow); }
+  .modal-row { display: flex; justify-content: flex-end; gap: 10px; }
+  .btn-sec, .btn-pri {
+    padding: 8px 18px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    border: none;
+    transition: all 0.2s;
+  }
+  .btn-sec { background: transparent; border: 1px solid var(--border-light); color: var(--text-secondary); }
+  .btn-sec:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+  .btn-pri { background: var(--accent-gradient); color: #fff; box-shadow: var(--accent-glow); }
+  .btn-pri:hover { opacity: 0.9; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-header">
+      <div class="sb-logo"><img src="{% static 'images/logo.png' %}" class="sb-logo-img" alt="BeautiCare AI Logo"/></div>
+      <div>
+        <div class="sb-brand-name">BeautiCare AI</div>
+        <div class="sb-brand-sub">Atharva Hair & Beauty</div>
+      </div>
+      <button class="sb-menu-btn" id="toggleSidebar"><i class="ti ti-dots-vertical"></i></button>
+    </div>
+    <button class="new-btn" id="newChatBtn">
+      <span class="new-btn-icon">+</span> New Consultation
+    </button>
+    <div class="sb-search">
+      <i class="ti ti-search"></i>
+      <input type="text" id="searchInput" placeholder="Search consultations..." autocomplete="off"/>
+    </div>
+    <nav class="sb-history" id="historyNav">
+      {% for group_name, group_sessions in grouped_sessions.items %}
+        <div class="sb-section">{{ group_name }}</div>
+        {% for session in group_sessions %}
+          <div class="chat-item {% if active_session and active_session.id == session.id %}active{% endif %}"
+               data-id="{{ session.id }}"
+               data-title="{{ session.title|escapejs }}"
+               onclick="window.location='/chat/{{ session.id }}/'">
+            <i class="ti ti-sparkles ci-icon"></i>
+            <div class="ci-body">
+              <div class="ci-title">{{ session.title }}</div>
+              <div class="ci-preview">{{ session.category }}</div>
+            </div>
+            <div class="ci-right">
+              <span class="pill pill-{{ session.category }}">{{ session.category }}</span>
+              <button class="ci-menu"
+                onclick="event.stopPropagation();openCtx(event,'{{ session.id }}','{{ session.title|escapejs }}')">
+                <i class="ti ti-dots"></i>
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+      {% empty %}
+        <div style="text-align:center;padding:36px 16px;color:var(--text-muted);font-size:12.5px;">
+          <div style="font-size:32px;margin-bottom:10px;">✨</div>
+          No consultations yet.<br>Start your first conversation!
+        </div>
+      {% endfor %}
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-avatar" id="userAvatar">
+          {% if request.user.is_authenticated %}{{ request.user.username|first|upper }}{% else %}G{% endif %}
+        </div>
+        <div>
+          <div class="sb-user-name">{% if request.user.is_authenticated %}{{ request.user.username }}{% else %}Guest User{% endif %}</div>
+          <div class="sb-user-plan">Atharva AI Pro</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main">
+    <button class="reveal-btn" id="revealBtn"><i class="ti ti-layout-sidebar-left-expand"></i></button>
+
+    <!-- Welcome (shown when no active session) -->
+    {% if not active_session %}
+    <div class="welcome" id="welcomeView">
+      <div class="w-icon-box" style="background:none;box-shadow:none;"><img src="{% static 'images/logo.png' %}" class="w-icon-img" alt="BeautiCare AI Logo"/></div>
+      <h1 class="w-title">How can Atharva AI transform your hair today?</h1>
+      <p class="w-sub">Personalized AI consultation for hair fall control, scalp balancing, deep moisture, and botanical care routines.</p>
+      <div class="quick-pills">
+        <button class="q-pill" onclick="startWith('show me your products')"><i class="ti ti-layout-grid"></i> Show All Products</button>
+        <button class="q-pill" onclick="startWith('which is the best for hairfall')"><i class="ti ti-shield-heart"></i> Hair Fall Solution</button>
+        <button class="q-pill" onclick="startWith('Best product for dry frizzy hair')"><i class="ti ti-droplet"></i> Frizz &amp; Dryness</button>
+        <button class="q-pill" onclick="startWith('give me a 4 step hair care routine')"><i class="ti ti-list-check"></i> 4-Step Routine</button>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Chat View (shown when active session exists) -->
+    {% if active_session %}
+    <div id="chatView" style="display:flex;flex:1;flex-direction:column;overflow:hidden;">
+      <div class="chat-header">
+        <div class="chat-header-title" id="chatTitle">{{ active_session.title }}</div>
+        <div class="status-badge"><span class="status-dot"></span> Atharva AI v2.5 Online</div>
+        <span class="pill pill-{{ active_session.category }}" id="chatCatPill">{{ active_session.category }}</span>
+      </div>
+
+      <div class="messages" id="messagesArea">
+        {% for message in messages %}
+
+          <!-- Message bubble -->
+          <div class="msg-row {{ message.role }}">
+            {% if message.role == 'assistant' %}
+              <div class="msg-av"><img src="{% static 'images/logo.png' %}" class="msg-av-img" alt="AI"/></div>
+              <div class="bubble ai">{{ message.content }}</div>
+            {% else %}
+              <div class="msg-av user-av">
+                {% if request.user.is_authenticated %}{{ request.user.username|first|upper }}{% else %}G{% endif %}
+              </div>
+              <div class="bubble user">{{ message.content }}</div>
+            {% endif %}
+          </div>
+
+          {# ── Product cards from history ── #}
+          {% if message.role == 'assistant' and message.products_json %}
+            <div class="product-cards">
+              {% for item in message.products_json %}
+                <div class="pc">
+                  <div class="pc-img-wrap">
+                    {% if item.image %}
+                      <img class="pc-img"
+                           src="{{ item.image }}"
+                           alt="{{ item.brand }} {{ item.name }}"
+                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                      <div class="pc-img-placeholder" style="display:none">💊</div>
+                    {% else %}
+                      <div class="pc-img-placeholder">💊</div>
+                    {% endif %}
+                    <div class="pc-rating-tag"><i class="ti ti-star-filled"></i> {{ item.rating|default:"4.8" }}</div>
+                  </div>
+                  <div class="pc-body">
+                    <div class="pc-brand">{{ item.brand|default:"Atharva" }}</div>
+                    <div class="pc-name">{{ item.name }}</div>
+                    <div class="pc-price">{{ item.price }}</div>
+                  </div>
+                  {% if item.how_to_use %}
+                    <button class="pc-how-btn"
+                      onclick="toggleHow('hist_{{ forloop.parentloop.counter }}_{{ forloop.counter }}', this)">
+                      <i class="ti ti-book"></i> How to Use
+                    </button>
+                    <div class="pc-how-panel" id="hist_{{ forloop.parentloop.counter }}_{{ forloop.counter }}">
+                      <div class="pc-how-text">{{ item.how_to_use }}</div>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Input Area -->
+    <div class="input-wrap">
+      <div class="input-bar">
+        <textarea class="chat-ta" id="chatInput"
+          placeholder="Ask Atharva AI about hair fall, dandruff, products, prices, or routines..."
+          rows="1"
+          onkeydown="handleKey(event)"
+          oninput="autoResize(this)"></textarea>
+        <div class="input-btns">
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()"><i class="ti ti-arrow-up"></i></button>
+        </div>
+      </div>
+      <p class="input-hint">Atharva BeautyCare AI • Botanically Formulated &amp; Scalp Approved 💧</p>
+    </div>
+  </main>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <button onclick="doRename()"><i class="ti ti-pencil"></i> Rename</button>
+  <button class="danger" onclick="doDelete()"><i class="ti ti-trash"></i> Delete</button>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-bg" id="renameModal">
+  <div class="modal">
+    <h3>Rename consultation</h3>
+    <input type="text" class="modal-inp" id="renameInp" maxlength="200"/>
+    <div class="modal-row">
+      <button class="btn-sec" onclick="closeModal()">Cancel</button>
+      <button class="btn-pri" onclick="confirmRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSRF_TOKEN = "{{ csrf_token }}";
+let currentId = "{% if active_session %}{{ active_session.id }}{% else %}{% endif %}";
+let isSending = false;
+let ctxTarget = null;
+
+/* ── SIDEBAR COLLAPSE ── */
+const sidebar = document.getElementById('sidebar');
+const revealBtn = document.getElementById('revealBtn');
+document.getElementById('toggleSidebar').addEventListener('click', () => {
+  const c = sidebar.classList.toggle('collapsed');
+  revealBtn.style.display = c ? 'flex' : 'none';
+  localStorage.setItem('sb_collapsed', c);
+});
+revealBtn.addEventListener('click', () => {
+  sidebar.classList.remove('collapsed');
+  revealBtn.style.display = 'none';
+  localStorage.setItem('sb_collapsed','false');
+});
+if (localStorage.getItem('sb_collapsed') === 'true') {
+  sidebar.classList.add('collapsed');
+  revealBtn.style.display = 'flex';
+}
+
+/* ── SEARCH ── */
+document.getElementById('searchInput').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.chat-item').forEach(el => {
+    el.style.display = (!q || el.dataset.title.toLowerCase().includes(q)) ? '' : 'none';
+  });
+  document.querySelectorAll('.sb-section').forEach(el => { el.style.display = q ? 'none' : ''; });
+});
+
+/* ── NEW CHAT ── */
+document.getElementById('newChatBtn').addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/sessions/new/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    window.location.href = `/chat/${data.session_id}/`;
+  } catch(e) { console.error('Failed to create session', e); }
+});
+
+/* ── SCROLL TO BOTTOM ── */
+function scrollBottom() {
+  const a = document.getElementById('messagesArea');
+  if (a) a.scrollTop = a.scrollHeight;
+}
+scrollBottom();
+
+/* ── APPEND BUBBLE ── */
+function appendBubble(role, content) {
+  const area = document.getElementById('messagesArea');
+  const userInitial = document.getElementById('userAvatar').textContent.trim();
+  const row = document.createElement('div');
+  row.className = `msg-row ${role}`;
+  if (role === 'assistant') {
+    row.innerHTML = `<div class="msg-av"><img src="/static/images/logo.png" class="msg-av-img" alt="AI"/></div><div class="bubble ai">${escHtml(content).replace(/\n/g,'<br>')}</div>`;
+  } else {
+    row.innerHTML = `<div class="msg-av user-av">${userInitial}</div><div class="bubble user">${escHtml(content).replace(/\n/g,'<br>')}</div>`;
+  }
+  area.appendChild(row);
+  scrollBottom();
+}
+
+/* ── RENDER PRODUCT CARDS (JS) ── */
+function renderProductCards(images) {
+  if (!images || !images.length) return;
+  const area = document.getElementById('messagesArea');
+  const wrap = document.createElement('div');
+  wrap.className = 'product-cards';
+  images.forEach((p, i) => {
+    const uid = `jshow_${Date.now()}_${i}`;
+    const card = document.createElement('div');
+    card.className = 'pc';
+    const imgHtml = p.image
+      ? `<div class="pc-img-wrap">
+           <img class="pc-img" src="${escHtml(p.image)}" alt="${escHtml(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+           <div class="pc-img-placeholder" style="display:none">💊</div>
+           <div class="pc-rating-tag"><i class="ti ti-star-filled"></i> ${escHtml(p.rating || '4.8')}</div>
+         </div>`
+      : `<div class="pc-img-wrap"><div class="pc-img-placeholder">💊</div><div class="pc-rating-tag"><i class="ti ti-star-filled"></i> ${escHtml(p.rating || '4.8')}</div></div>`;
+    card.innerHTML = `
+      ${imgHtml}
+      <div class="pc-body">
+        <div class="pc-brand">${escHtml(p.brand || 'Atharva')}</div>
+        <div class="pc-name">${escHtml(p.name || '')}</div>
+        <div class="pc-price">${escHtml(String(p.price || ''))}</div>
+      </div>
+      ${p.how_to_use ? `
+        <button class="pc-how-btn" onclick="toggleHow('${uid}',this)">
+          <i class="ti ti-book"></i> How to Use
+        </button>
+        <div class="pc-how-panel" id="${uid}">
+          <div class="pc-how-text">${escHtml(p.how_to_use)}</div>
+        </div>` : ''}`;
+    wrap.appendChild(card);
+  });
+  area.appendChild(wrap);
+  scrollBottom();
+}
+
+function toggleHow(uid, btn) {
+  const panel = document.getElementById(uid);
+  panel.classList.toggle('open');
+  btn.innerHTML = panel.classList.contains('open')
+    ? '<i class="ti ti-chevron-up"></i> Hide Guide'
+    : '<i class="ti ti-book"></i> How to Use';
+}
+
+function escHtml(t) {
+  const d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(t)));
+  return d.innerHTML;
+}
+
+/* ── SEND MESSAGE ── */
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || isSending) return;
+  isSending = true;
+  document.getElementById('sendBtn').disabled = true;
+  input.value = ''; autoResize(input);
+
+  if (!currentId) {
+    try {
+      const res = await fetch('/api/sessions/new/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) throw new Error('Session creation failed');
+      const data = await res.json();
+      currentId = data.session_id;
+      document.getElementById('welcomeView') && (document.getElementById('welcomeView').style.display = 'none');
+      const chatView = document.getElementById('chatView') || (() => {
+        const cv = document.createElement('div');
+        cv.id = 'chatView';
+        cv.style.cssText = 'display:flex;flex:1;flex-direction:column;overflow:hidden;';
+        cv.innerHTML = `
+          <div class="chat-header">
+            <div class="chat-header-title" id="chatTitle">New Consultation</div>
+            <div class="status-badge"><span class="status-dot"></span> Atharva AI v2.5 Online</div>
+            <span class="pill pill-general" id="chatCatPill">general</span>
+          </div>
+          <div class="messages" id="messagesArea"></div>`;
+        document.getElementById('main').insertBefore(cv, document.querySelector('.input-wrap'));
+        return cv;
+      })();
+      chatView.style.display = 'flex';
+    } catch(e) {
+      appendBubble('assistant', 'Could not start a session. Please try again.');
+      isSending = false;
+      document.getElementById('sendBtn').disabled = false;
+      return;
+    }
+  }
+
+  appendBubble('user', text);
+
+  const area = document.getElementById('messagesArea');
+  const typingRow = document.createElement('div');
+  typingRow.className = 'msg-row assistant';
+  typingRow.id = 'typingRow';
+  typingRow.innerHTML = `<div class="msg-av"><img src="/static/images/logo.png" class="msg-av-img" alt="AI"/></div><div class="bubble ai typing-bubble"><span></span><span></span><span></span></div>`;
+  area.appendChild(typingRow);
+  scrollBottom();
+
+  try {
+    const res = await fetch(`/api/sessions/${currentId}/send/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+      body: JSON.stringify({ message: text }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const apiData = await res.json();
+    typingRow.remove();
+
+    appendBubble('assistant', apiData.reply);
+
+    if (apiData.products && apiData.products.length) {
+      renderProductCards(apiData.products);
+    }
+
+    if (apiData.session_title) {
+      const titleEl = document.getElementById('chatTitle');
+      const pillEl  = document.getElementById('chatCatPill');
+      if (titleEl) titleEl.textContent = apiData.session_title;
+      if (pillEl)  { pillEl.textContent = apiData.session_category || 'general'; pillEl.className = `pill pill-${apiData.session_category||'general'}`; }
+    }
+
+  } catch(e) {
+    typingRow.remove();
+    appendBubble('assistant', 'Something went wrong. Please try again in a moment.');
+    console.error(e);
+  }
+
+  isSending = false;
+  document.getElementById('sendBtn').disabled = false;
+  scrollBottom();
+}
+
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
+function startWith(text) { document.getElementById('chatInput').value = text; autoResize(document.getElementById('chatInput')); sendMessage(); }
+
+/* ── CONTEXT MENU ── */
+const ctxMenu = document.getElementById('ctxMenu');
+function openCtx(e, id, title) {
+  ctxTarget = { id, title };
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 170) + 'px';
+  ctxMenu.style.top  = Math.min(e.clientY, window.innerHeight - 100) + 'px';
+}
+document.addEventListener('click', e => { if (!ctxMenu.contains(e.target)) ctxMenu.style.display = 'none'; });
+
+function doRename() {
+  ctxMenu.style.display = 'none';
+  document.getElementById('renameInp').value = ctxTarget.title;
+  document.getElementById('renameModal').classList.add('open');
+  document.getElementById('renameInp').focus();
+}
+async function confirmRename() {
+  const t = document.getElementById('renameInp').value.trim();
+  if (t && ctxTarget) {
+    try {
+      await fetch(`/api/sessions/${ctxTarget.id}/rename/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ title: t })
+      });
+    } catch(e) {}
+    const item = document.querySelector(`.chat-item[data-id="${ctxTarget.id}"] .ci-title`);
+    if (item) item.textContent = t;
+    if (ctxTarget.id == currentId) {
+      const titleEl = document.getElementById('chatTitle');
+      if (titleEl) titleEl.textContent = t;
+    }
+  }
+  closeModal();
+}
+function closeModal() { document.getElementById('renameModal').classList.remove('open'); }
+document.getElementById('renameInp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmRename();
+  if (e.key === 'Escape') closeModal();
+});
+
+async function doDelete() {
+  ctxMenu.style.display = 'none';
+  if (!ctxTarget || !confirm('Delete this consultation?')) return;
+  try {
+    await fetch(`/api/sessions/${ctxTarget.id}/delete/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN }
+    });
+  } catch(e) {}
+  const item = document.querySelector(`.chat-item[data-id="${ctxTarget.id}"]`);
+  if (item) item.remove();
+  if (ctxTarget.id == currentId) window.location.href = '/';
+}
+
+document.getElementById('chatInput').focus();
+</script>
+</body>
+</html>
